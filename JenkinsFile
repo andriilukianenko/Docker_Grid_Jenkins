@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+
+    environment {
+
+        COMPOSE_FILE = "docker-compose.yml"
+    }
+    tools {
+        maven "3.8.6"
+        jdk "1.8"
+
+    }
+
+    stages {
+        stage("Build and start") {
+            steps {
+                step([$class: 'DockerComposeBuilder', dockerComposeFile: 'MyJava/Task7/docker-compose.yml', option: [$class: 'ExecuteCommandInsideContainer', command: 'docker compose up', index: 1, privilegedMode: false, service: '', workDir: ''], useCustomDockerComposeFile: true])
+            }
+        }
+
+        stage("Run tests") {
+            steps {
+                sh "mvn -f Task7/pom.xml clean test"
+            }
+        }
+    }
+
+        post("Allure report and Turn down docker") {
+            always {
+                allure([
+                        includeProperties: false,
+                        jdk              : '',
+                        properties       : [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results          : [[path: 'Docker_Grid_Jenkins/target/allure-results']]
+                ])
+                step([$class: 'DockerBuilderControl', option: [$class: 'DockerBuilderControlOptionStopAll', remove: true]])
+            }
+        }
+    }
